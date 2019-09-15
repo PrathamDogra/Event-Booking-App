@@ -17,6 +17,10 @@ const eventSchema = new Schema({
   date: {
     type: Date,
     require: true
+  },
+  creator:{
+    type: Schema.Types.ObjectId,
+    ref:'User'
   }
 });
 //With the below line we have created a model which will be stored as a collection 
