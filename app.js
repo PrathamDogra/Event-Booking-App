@@ -9,6 +9,15 @@ const app = express();
 app.use(bodyParser.json());
 const Event = require("./models/event");
 const User = require("./models/user");
+const user = userId => {
+  return User.findById()
+    .then(user => {
+      return { ...user._doc, _id: user.id };
+    })
+    .catch(err => {
+      throw err;
+    });
+};
 app.use(
   "/api",
   graphqlHttp({
@@ -19,11 +28,13 @@ app.use(
         description: String!
         price:Float!
         date:String!
+        creator:User!
     }
     type User {
         _id: ID!
         email: String!
         password: String
+        createdEvents:[Event!]
     }
     type RootQuery {
         events:[Event!]!
@@ -51,23 +62,42 @@ app.use(
     // the rootValue is the resolvers in graphQL
     rootValue: {
       events: () => {
-        return Event.find().then(events => {
-          return events.map(event => {
-            return { ...event._doc, _id: event.id };
+        return Event.find()
+          .populate("creator")
+          .then(events => {
+            return events.map(event => {
+              return {
+                ...event._doc,
+                _id: event.id,
+                creator: user.bind(this, even._doc.creator)
+              };
+            });
           });
-        });
       },
       createEvent: args => {
         const event = new Event({
           title: args.eventInput.title,
           description: args.eventInput.description,
           price: +args.eventInput.price,
-          date: new Date(args.eventInput.date)
+          date: new Date(args.eventInput.date),
+          creator: "5d808a67d7857d424cc6c522"
         });
+        let createdEvent;
         return event
           .save()
           .then(result => {
-            return { ...result._doc, _id: result._doc._id.toString() };
+            createdEvent = { ...result._doc, _id: result._doc._id.toString() };
+            return User.findById("5d808a67d7857d424cc6c522");
+          })
+          .then(user => {
+            if (!user) {
+              throw new Error("User Not Found");
+            }
+            user.createdEvents.push(event);
+            return user.save();
+          })
+          .then(result => {
+            return createdEvent;
           })
           .catch(err => {
             console.log(err);
